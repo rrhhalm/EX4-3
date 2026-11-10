@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المختبر الافتراضي - تحلل الخبز</title>
+    <style>
+        :root {
+            --primary: #f39c12;
+            --bg: #f4f4f9;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #d35400;
+            margin-bottom: 10px;
+        }
+
+        p.instruction {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        /* لوحة التحكم (الأدوات) */
+        .toolbar {
+            display: flex;
+            gap: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tool {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            background: #fff;
+            width: 100px;
+        }
+
+        .tool:hover {
+            background: #fdf2e9;
+            border-color: var(--primary);
+            transform: translateY(-5px);
+        }
+
+        .tool.active {
+            background: #ffeaa7;
+            border-color: #d35400;
+        }
+
+        .tool-icon {
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+
+        .tool-label {
+            font-size: 0.9em;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* ساحة العمل */
+        .workspace {
+            display: flex;
+            gap: 50px;
+            justify-content: center;
+            align-items: flex-end;
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            min-height: 400px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f4f4f9"/><path d="M0 100 L100 0" stroke="%23e0e0e0" stroke-width="1"/></svg>');
+            border-radius: 20px;
+            padding: 20px;
+        }
+
+        /* مناطق البيئة */
+        .environment-zone {
+            position: relative;
+            width: 300px;
+            height: 350px;
+            border: 3px dashed #bdc3c7;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding-bottom: 30px;
+            transition: all 0.3s;
+            background-color: rgba(255,255,255,0.5);
+        }
+
+        .environment-zone.highlight {
+            border-color: #27ae60;
+            background-color: rgba(39, 174, 96, 0.1);
+        }
+
+        .zone-label {
+            position: absolute;
+            top: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+
+        /* شكل الثلاجة (تبريد) */
+        #fridge-zone {
+            background: linear-gradient(to bottom, #e0f2f1, #b2dfdb);
+            border-color: #26a69a;
+        }
+        #fridge-zone .zone-label { color: #00695c; }
+        #fridge-zone::before {
+            content: "❄️";
+            font-size: 3em;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.1;
+        }
+
+        /* شكل الدولاب (دفء) */
+        #cabinet-zone {
+            background: linear-gradient(to bottom, #d7ccc8, #a1887f);
+            border-color: #795548;
+            border-style: solid;
+        }
+        #cabinet-zone .zone-label { color: #4e342e; }
+        #cabinet-zone::before {
+            content: "🌡️";
+            font-size: 3em;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.1;
+        }
+
+        /* الخبز */
+        .bread-container {
+            width: 120px;
+            height: 80px;
+            background: #e6b366;
+            border-radius: 10px;
+            border: 3px solid #c78e3e;
+            position: relative;
+            box-shadow: 3px 5px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: all 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            /* تفعيل السحب بشكل افتراضي */
+            cursor: grab;
+        }
+
+        .bread-container:active {
+            cursor: grabbing;
+        }
+
+        .bread-container.wet {
+            background: #d49a4e;
+            border-color: #a66e2a;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        .bread-container.wet::after {
+            content: "💧";
+            position: absolute;
+            font-size: 1.5em;
+            top: 5px;
+            right: 5px;
+            animation: drop 1s infinite;
+        }
+
+        @keyframes drop {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(5px); opacity: 0; }
+        }
+
+        .bread-container.in-fridge {
+            background: #cce5ff;
+            border-color: #66b3ff;
+        }
+
+        .bread-container.in-cabinet {
+            background: #f5b041;
+            border-color: #d35400;
+        }
+
+        /* العفن */
+        .mold-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s;
+            background-image: radial-gradient(circle, #2ecc71 10%, transparent 11%),
+                              radial-gradient(circle, #27ae60 10%, transparent 11%),
+                              radial-gradient(circle, #145a32 5%, transparent 6%);
+            background-size: 20px 20px, 30px 30px, 10px 10px;
+            background-position: 0 0, 15px 15px, 5px 25px;
+        }
+
+        /* منطقة العمل (المدخلات) */
+        .work-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 250px;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* المؤقت */
+        #timer-display {
+            font-size: 1.5em;
+            color: #d35400;
+            font-weight: bold;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* لوحة النتائج */
+        .results-panel {
+            margin-top: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 800px;
+            display: none;
+        }
+
+        .results-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f9f9f9;
+            border-right: 4px solid #bdc3c7;
+            font-size: 0.95em;
+        }
+
+        .log-entry.success { border-color: #27ae60; background: #e8f8f5; }
+        .log-entry.warning { border-color: #f39c12; background: #fef9e7; }
+        .log-entry.danger { border-color: #e74c3c; background: #fdedec; }
+        .log-entry.info { border-color: #3498db; background: #eaf2f8; }
+
+        /* زر إعادة الضبط */
+        .reset-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .reset-btn:hover {
+            background: #c0392b;
+        }
+
+        /* حالة التنبيه */
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f39c12;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🧪 المختبر الافتراضي: تحلل الخبز</h1>
+    <p class="instruction">
+        قم بترطيب قطعتين من الخبز، ثم عرضهما للهواء لمدة 10 ثوانٍ.
+        بعد ذلك، قم بسحب قطعة إلى <strong>الثلاجة</strong> والأخرى إلى <strong>الدولاب الخشبي</strong>.
+        راقب النتائج.
+    </p>
+
+    <!-- لوحة الأدوات -->
+    <div class="toolbar">
+        <div class="tool" id="tool-wet" onclick="activateTool('wet')">
+            <div class="tool-icon">💧</div>
+            <div class="tool-label">ترطيب</div>
+        </div>
+        <div class="tool" id="tool-air" onclick="activateTool('air')">
+            <div class="tool-icon">💨</div>
+            <div class="tool-label">عرض للهواء (10 ثواني)</div>
+        </div>
+        <div class="tool" id="tool-move" onclick="activateTool('move')">
+            <div class="tool-icon">✋</div>
+            <div class="tool-label">تحريك الخبز</div>
+        </div>
+    </div>
+
+    <!-- ساحة العمل -->
+    <div class="workspace">
+        <!-- منطقة الثلاجة -->
+        <div class="environment-zone" id="fridge-zone" ondragover="allowDrop(event)" ondrop="drop(event)">
+            <div class="zone-label">الثلاجة (بارد)</div>
+            <div id="fridge-slot" style="width: 120px; height: 80px;"></div>
+        </div>
+
+        <!-- منطقة العمل (الخبز في المنتصف) -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+            <div id="bread-area" style="display: flex; gap: 20px;">
+                <!-- تم إزالة شرط السحب المسبق وجعله يعتمد على الحالة في الجافاسكريبت -->
+                <div class="bread-container" id="bread1" draggable="true" ondragstart="drag(event)">
+                    <div class="mold-overlay" id="mold1"></div>
+                </div>
+                <div class="bread-container" id="bread2" draggable="true" ondragstart="drag(event)">
+                    <div class="mold-overlay" id="mold2"></div>
+                </div>
+            </div>
+            <div id="timer-display">⏳ 10 ثوانٍ</div>
+        </div>
+
+        <!-- منطقة الدولاب -->
+        <div class="environment-zone" id="cabinet-zone" ondragover="allowDrop(event)" ondrop="drop(event)">
+            <div class="zone-label">الدولاب الخشبي (دافئ)</div>
+            <div id="cabinet-slot" style="width: 120px; height: 80px;"></div>
+        </div>
+    </div>
+
+    <!-- لوحة النتائج -->
+    <div class="results-panel" id="results-panel">
+        <h3>📊 سجل النتائج</h3>
+        <div id="log"></div>
+        <button class="reset-btn" onclick="resetLab()">إعادة التجربة 🔄</button>
+    </div>
+
+    <!-- تنبيه -->
+    <div id="alert" class="alert-box"></div>
+
+    <script>
+        // الحالة
+        let state = {
+            bread1: { wet: false, aired: false, location: 'start', mold: 0, id: 'bread1' },
+            bread2: { wet: false, aired: false, location: 'start', mold: 0, id: 'bread2' },
+            activeTool: null,
+            timerRunning: false
+        };
+
+        // عناصر DOM
+        const bread1El = document.getElementById('bread1');
+        const bread2El = document.getElementById('bread2');
+        const mold1El = document.getElementById('mold1');
+        const mold2El = document.getElementById('mold2');
+        const timerDisplay = document.getElementById('timer-display');
+        const resultsPanel = document.getElementById('results-panel');
+        const logContainer = document.getElementById('log');
+        const alertBox = document.getElementById('alert');
+
+        // أدوات
+        function activateTool(tool) {
+            document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
+            state.activeTool = tool;
+
+            if (tool) {
+                document.getElementById(`tool-${tool}`).classList.add('active');
+            }
+
+            if (tool === 'wet') {
+                showAlert('انقر على الخبز لترطيبه 💧');
+            } else if (tool === 'move') {
+                if(!state.bread1.aired || !state.bread2.aired){
+                    showAlert('يجب تعريض الخبز للهواء أولاً!', 'warning');
+                    document.getElementById('tool-move').classList.remove('active');
+                    state.activeTool = null;
+                } else {
+                    showAlert('اسحب الخبز إلى الثلاجة أو الدولاب ✋');
+                }
+            } else if (tool === 'air') {
+                startAirExposure();
+            }
+        }
+
+        // ترطيب الخبز
+        bread1El.addEventListener('click', () => {
+            if (state.activeTool === 'wet') {
+                state.bread1.wet = true;
+                bread1El.classList.add('wet');
+                checkWetStatus();
+            }
+        });
+
+        bread2El.addEventListener('click', () => {
+            if (state.activeTool === 'wet') {
+                state.bread2.wet = true;
+                bread2El.classList.add('wet');
+                checkWetStatus();
+            }
+        });
+
+        function checkWetStatus() {
+            if (state.bread1.wet && state.bread2.wet) {
+                showAlert('تم ترطيب القطعتين! الآن قم بتعريضهما للهواء 💨', 'success');
+                state.activeTool = null;
+                document.getElementById('tool-wet').classList.remove('active');
+            }
+        }
+
+        // تعريض للهواء (تم تقليله إلى 10 ثوانٍ)
+        function startAirExposure() {
+            if (!state.bread1.wet || !state.bread2.wet) {
+                showAlert('يجب ترطيب الخبز أولاً!', 'warning');
+                return;
+            }
+
+            if (state.timerRunning) return;
+
+            state.timerRunning = true;
+            let timeLeft = 10; // 10 ثوانٍ فقط
+            timerDisplay.style.display = 'block';
+            document.getElementById('tool-air').classList.add('active');
+            state.activeTool = null; // منع التداخل
+
+            const interval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = `⏳ ${timeLeft} ثوانٍ متبقية...`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    state.bread1.aired = true;
+                    state.bread2.aired = true;
+                    state.timerRunning = false;
+                    timerDisplay.style.display = 'none';
+                    document.getElementById('tool-air').classList.remove('active');
+
+                    showAlert('انتهى وقت التعريض! الآن اسحب الخبز ✋', 'success');
+                    activateTool('move'); // تفعيل أداة التحريك تلقائياً
+                }
+            }, 1000); 
+        }
+
+        // السحب والإفلات
+        function drag(ev) {
+            // التحقق من الحالة قبل السماح بالسحب
+            if (!state.bread1.aired || !state.bread2.aired) {
+                ev.preventDefault();
+                showAlert('يجب تعريض الخبز للهواء أولاً!', 'warning');
+                return;
+            }
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(data);
+
+            if (!draggedElement) return;
+
+            let targetSlot = null;
+            let location = '';
+
+            // التحقق من المنطقة التي تم الإفلات فيها
+            if (ev.target.closest('#fridge-zone')) {
+                targetSlot = document.getElementById('fridge-slot');
+                location = 'fridge';
+            } else if (ev.target.closest('#cabinet-zone')) {
+                targetSlot = document.getElementById('cabinet-slot');
+                location = 'cabinet';
+            } else {
+                return;
+            }
+
+            // التحقق من وجود خبز في الهدف بالفعل
+            if (targetSlot.children.length > 0) {
+                showAlert('هذا المكان ممتلئ!', 'warning');
+                return;
+            }
+
+            // نقل العنصر
+            targetSlot.appendChild(draggedElement);
+            draggedElement.style.cursor = 'default';
+            draggedElement.setAttribute('draggable', 'false'); // منع سحبه مرة أخرى
+
+            // تحديث الحالة
+            if (data === 'bread1') {
+                state.bread1.location = location;
+            } else {
+                state.bread2.location = location;
+            }
+
+            // إضافة كلاس للبيئة
+            if (location === 'fridge') {
+                draggedElement.classList.add('in-fridge');
+            } else if (location === 'cabinet') {
+                draggedElement.classList.add('in-cabinet');
+            }
+
+            // بدء محاكاة التحلل
+            startSimulation();
+
+            // التحقق من اكتمال التجربة
+            if ((state.bread1.location === 'fridge' && state.bread2.location === 'cabinet') ||
+                (state.bread1.location === 'cabinet' && state.bread2.location === 'fridge')) {
+                resultsPanel.style.display = 'block';
+                log('تم وضع الخبز في البيئتين. جاري المراقبة...', 'info');
+                document.getElementById('tool-move').classList.remove('active');
+            }
+        }
+
+        // محاكاة التحلل
+        let simulationInterval = null;
+        function startSimulation() {
+            if (simulationInterval) return;
+
+            simulationInterval = setInterval(() => {
+                updateMold('bread1');
+                updateMold('bread2');
+                updateLogs();
+            }, 1000); 
+        }
+
+        function updateMold(id) {
+            let bread = id === 'bread1' ? state.bread1 : state.bread2;
+            let moldEl = id === 'bread1' ? mold1El : mold2El;
+            let breadEl = id === 'bread1' ? bread1El : bread2El;
+
+            if (bread.location === 'start' || !bread.aired) return;
+
+            let rate = 0;
+            if (bread.location === 'cabinet') {
+                rate = 5; // سريع
+            } else if (bread.location === 'fridge') {
+                rate = 0.5; // بطيء
+            }
+
+            bread.mold = Math.min(100, bread.mold + rate);
+            moldEl.style.opacity = bread.mold / 100;
+
+            if (bread.mold > 50) {
+                breadEl.style.borderColor = '#2ecc71';
+            }
+        }
+
+        function updateLogs() {
+            logContainer.innerHTML = '';
+
+            if (state.bread1.location !== 'start') {
+                let status = state.bread1.mold > 80 ? 'danger' : (state.bread1.mold > 30 ? 'warning' : 'success');
+                let text = `القطعة 1 في ${state.bread1.location === 'fridge' ? 'الثلاجة ❄️' : 'الدولاب 🌡️'}: العفن ${Math.round(state.bread1.mold)}%`;
+                log(text, status);
+            }
+
+            if (state.bread2.location !== 'start') {
+                let status = state.bread2.mold > 80 ? 'danger' : (state.bread2.mold > 30 ? 'warning' : 'success');
+                let text = `القطعة 2 في ${state.bread2.location === 'fridge' ? 'الثلاجة ❄️' : 'الدولاب 🌡️'}: العفن ${Math.round(state.bread2.mold)}%`;
+                log(text, status);
+            }
+
+            if (state.bread1.mold > 90 || state.bread2.mold > 90) {
+                log('🔬 النتيجة: الحرارة الدافئة (الدولاب) تسرع من تحلل الخبز وظهور العفن، بينما التبريد (الثلاجة) يبطئ العملية.', 'info');
+            }
+        }
+
+        function log(message, type) {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type || ''}`;
+            div.textContent = message;
+            logContainer.appendChild(div);
+        }
+
+        function showAlert(msg, type = 'info') {
+            alertBox.textContent = msg;
+            alertBox.style.display = 'block';
+            alertBox.style.background = type === 'warning' ? '#e74c3c' : (type === 'success' ? '#27ae60' : '#f39c12');
+
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 3000);
+        }
+
+        function resetLab() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
